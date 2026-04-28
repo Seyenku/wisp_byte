@@ -1,8 +1,8 @@
+# app/database.py
 import sqlite3
 
-# Подключение к БД
 db_conn = sqlite3.connect("chat.db", check_same_thread=False)
-db_conn.execute("PRAGMA journal_mode=WAL")   # Безопаснее при конкурентном доступе
+db_conn.execute("PRAGMA journal_mode=WAL")
 db_conn.execute("PRAGMA foreign_keys=ON")
 
 def init_db():
@@ -19,6 +19,16 @@ def init_db():
             sender      TEXT NOT NULL,
             receiver    TEXT NOT NULL,
             ciphertext  TEXT NOT NULL
+        )
+    ''')
+    # НОВАЯ ТАБЛИЦА ДЛЯ ДРУЗЕЙ
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS friendships (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            requester TEXT NOT NULL,
+            addressee TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            UNIQUE(requester, addressee)
         )
     ''')
     db_conn.commit()

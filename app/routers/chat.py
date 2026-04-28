@@ -47,9 +47,14 @@ async def websocket_endpoint(websocket: WebSocket, token: str = ""):
                 await websocket.send_json({"system": "Сообщение слишком длинное (макс. 4096)"})
                 continue
 
-            cursor.execute("SELECT 1 FROM users WHERE username = ?", (receiver,))
+            cursor.execute('''
+                SELECT 1 FROM friendships 
+                WHERE ((requester = ? AND addressee = ?) OR (requester = ? AND addressee = ?))
+                  AND status = 'accepted'
+            ''', (username, receiver, receiver, username))
+            
             if not cursor.fetchone():
-                await websocket.send_json({"system": f"Пользователь '{receiver}' не найден"})
+                await websocket.send_json({"system": f"Вы не можете писать '{receiver}', так как вы не друзья."})
                 continue
 
             await manager.send_message(text, receiver, username)
