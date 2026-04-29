@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from typing import AsyncGenerator
-from app.config import settings
+from app.core.config import settings
 
 engine_kwargs = {"echo": False, "future": True}
 if "sqlite" not in settings.database_url:

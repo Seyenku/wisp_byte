@@ -11,7 +11,7 @@ from app.rate_limiter import limiter
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.config import settings
+from app.core.config import settings
 from app.database import engine
 from app.routers import auth, chat, friends
 
@@ -50,6 +50,7 @@ if __name__ == "__main__":
     import logging
     from alembic.config import Config
     from alembic import command
+    from app.core.config import settings
     
     logging.info("Running database migrations...")
     try:

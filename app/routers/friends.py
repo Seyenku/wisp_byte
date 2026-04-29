@@ -3,9 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, and_
 
 from app.database import get_db_session
-from app.security import get_current_user
+from app.core import get_current_user
 from app.schemas import FriendActionRequest, UserSearchItem, FriendSuggestion
-from app.models import User, Friendship
+from app.models import User, OfflineMessage, Friendship
 from typing import List
 
 router = APIRouter(prefix="/friends", tags=["Друзья"])

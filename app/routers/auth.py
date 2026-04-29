@@ -5,10 +5,10 @@ from sqlalchemy import select
 
 from app.database import get_db_session
 from app.schemas import RegisterRequest, TokenResponse
-from app.security import hash_password, verify_password, create_jwt, DUMMY_HASH
+from app.core import hash_password, verify_password, create_jwt, DUMMY_HASH
 from app.rate_limiter import limiter
 import re
-from app.models import User
+from app.models import User, OfflineMessage, Friendship
 
 router = APIRouter(tags=["Авторизация"])
 
