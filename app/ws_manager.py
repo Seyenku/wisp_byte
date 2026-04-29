@@ -1,16 +1,29 @@
+import asyncio
 from fastapi import WebSocket
 from typing import Dict
-from app.database import db_conn
+from sqlalchemy import select, and_, or_
+from app.database import async_session_maker
 from app.security import encrypt_message, decrypt_message
+from app.models import Friendship, OfflineMessage
 
-def get_user_friends(username: str) -> list:
-    cursor = db_conn.cursor()
-    cursor.execute('''
-        SELECT requester FROM friendships WHERE addressee = ? AND status = 'accepted'
-        UNION
-        SELECT addressee FROM friendships WHERE requester = ? AND status = 'accepted'
-    ''', (username, username))
-    return [row[0] for row in cursor.fetchall()]
+async def get_user_friends(username: str) -> list:
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Friendship).where(
+                and_(
+                    or_(Friendship.requester == username, Friendship.addressee == username),
+                    Friendship.status == 'accepted'
+                )
+            )
+        )
+        friendships = result.scalars().all()
+        friends = []
+        for f in friendships:
+            if f.requester == username:
+                friends.append(f.addressee)
+            else:
+                friends.append(f.requester)
+        return friends
 
 class ConnectionManager:
     def __init__(self):
@@ -19,46 +32,56 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket, username: str):
         await websocket.accept()
         self.active_connections[username] = websocket
-        friends = get_user_friends(username)
-        for friend in friends:
-            if friend in self.active_connections:
-                await self.active_connections[friend].send_json({"system": f"Ваш друг {username} вошел в сеть."})
         
-        # 2. Доставка офлайн-сообщений (ваш старый код остается)
-        cursor = db_conn.cursor()
-        cursor.execute("SELECT id, sender, ciphertext FROM offline_messages WHERE receiver = ?", (username,))
-        rows = cursor.fetchall()
-        for msg_id, sender, ciphertext in rows:
-            try:
-                text = decrypt_message(ciphertext)
-            except Exception:
-                text = "[не удалось расшифровать сообщение]"
-            await websocket.send_json({"from": sender, "text": text, "queued": True})
-            cursor.execute("DELETE FROM offline_messages WHERE id = ?", (msg_id,))
-        if rows:
-            db_conn.commit()
+        
+        # Выгрузка офлайн сообщений
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(OfflineMessage).where(OfflineMessage.receiver == username)
+            )
+            rows = result.scalars().all()
+            for row in rows:
+                try:
+                    text = decrypt_message(row.ciphertext)
+                except Exception:
+                    text = "[не удалось расшифровать сообщение]"
+                    
+                await websocket.send_json({"action": "message", "from": row.sender, "text": text, "cid": row.cid or f"offline_{row.id}"})
+                await session.delete(row)
+            if rows:
+                await session.commit()
 
-    def disconnect(self, username: str):
+    async def disconnect(self, username: str):
         self.active_connections.pop(username, None)
-        # Уведомляем друзей, что пользователь вышел
-        friends = get_user_friends(username)
-        for friend in friends:
-            if friend in self.active_connections:
-                import asyncio
-                # Используем fire-and-forget, так как сокет может закрываться
-                asyncio.create_task(self.active_connections[friend].send_json({"system": f"Ваш друг {username} вышел из сети."}))
 
-    async def send_message(self, text: str, receiver: str, sender: str):
+    async def send_message(self, text: str, receiver: str, sender: str, cid: str):
+        if sender in self.active_connections:
+            await self.active_connections[sender].send_json({"action": "ack", "cid": cid})
+
         if receiver in self.active_connections:
             await self.active_connections[receiver].send_json(
-                {"from": sender, "text": text, "queued": False}
+                {"action": "message", "from": sender, "text": text, "cid": cid}
             )
         else:
-            cursor = db_conn.cursor()
-            cursor.execute(
-                "INSERT INTO offline_messages (sender, receiver, ciphertext) VALUES (?, ?, ?)",
-                (sender, receiver, encrypt_message(text))
+            async with async_session_maker() as session:
+                new_msg = OfflineMessage(
+                    sender=sender,
+                    receiver=receiver,
+                    ciphertext=encrypt_message(text),
+                    cid=cid
+                )
+                session.add(new_msg)
+                await session.commit()
+    
+    async def forward_event(self, action: str, receiver: str, sender: str, cid: str):
+        # Пересылка системных событий (например, read receipt)
+        if receiver in self.active_connections:
+            await self.active_connections[receiver].send_json(
+                {"action": action, "from": sender, "cid": cid}
             )
-            db_conn.commit()
+
+    async def notify_user(self, username: str, data: dict):
+        if username in self.active_connections:
+            await self.active_connections[username].send_json(data)
 
 manager = ConnectionManager()

@@ -1,34 +1,25 @@
-# app/database.py
-import sqlite3
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from typing import AsyncGenerator
+from app.config import settings
 
-db_conn = sqlite3.connect("chat.db", check_same_thread=False)
-db_conn.execute("PRAGMA journal_mode=WAL")
-db_conn.execute("PRAGMA foreign_keys=ON")
+engine_kwargs = {"echo": False, "future": True}
+if "sqlite" not in settings.database_url:
+    engine_kwargs["pool_size"] = 10
+    engine_kwargs["max_overflow"] = 20
 
-def init_db():
-    cursor = db_conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            username    TEXT PRIMARY KEY,
-            password_hash TEXT NOT NULL
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS offline_messages (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            sender      TEXT NOT NULL,
-            receiver    TEXT NOT NULL,
-            ciphertext  TEXT NOT NULL
-        )
-    ''')
-    # НОВАЯ ТАБЛИЦА ДЛЯ ДРУЗЕЙ
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS friendships (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            requester TEXT NOT NULL,
-            addressee TEXT NOT NULL,
-            status TEXT DEFAULT 'pending',
-            UNIQUE(requester, addressee)
-        )
-    ''')
-    db_conn.commit()
+engine = create_async_engine(
+    settings.database_url,
+    **engine_kwargs
+)
+
+async_session_maker = async_sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
+)
+
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """Dependency для FastAPI роутеров"""
+    async with async_session_maker() as session:
+        yield session
+
+# Синхронная/Асинхронная инициализация пула больше не нужна в том виде, в каком она была,
+# так как SQLAlchemy engine управляет пулом сам.

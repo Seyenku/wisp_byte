@@ -4,3 +4,9 @@ bcrypt
 python-jose[cryptography]
 cryptography
 python-multipart
+sqlalchemy[asyncio]
+aiosqlite
+alembic
+pydantic-settings
+python-dotenv
+slowapi
