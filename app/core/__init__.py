@@ -10,6 +10,7 @@ from app.core.security import (
     decrypt_message,
     get_current_user,
     DUMMY_HASH,
+    oauth2_scheme,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "decrypt_message",
     "get_current_user",
     "DUMMY_HASH",
+    "oauth2_scheme",
 ]

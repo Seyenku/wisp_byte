@@ -7,50 +7,56 @@ from fastapi.responses import FileResponse
 import uvicorn
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from app.rate_limiter import limiter
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.config import settings
+from app.core.rate_limiter import limiter
 from app.database import engine
 from app.routers import auth, chat, friends
 
-# Современный метод управления жизненным циклом приложения FastAPI
+
+# Modern lifespan manager for FastAPI application lifecycle
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Логика, выполняемая при ЗАПУСКЕ сервера
-    yield # Сервер работает
-    # Логика, выполняемая при ОСТАНОВКЕ сервера
+    """Manage application startup and shutdown."""
+    # Startup logic
+    yield  # Server is running
+    # Shutdown logic
     await engine.dispose()
+
 
 app = FastAPI(title="Защищенный Чат-Сервер", lifespan=lifespan)
 
+# Configure rate limiting
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Setup static files
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
-
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():
+    """Serve favicon."""
     favicon_path = os.path.join(STATIC_DIR, "favicon.ico")
     if os.path.exists(favicon_path):
         return FileResponse(favicon_path)
     from fastapi.responses import Response
     return Response(status_code=204)
 
+
+# Register routers
 app.include_router(auth.router)
 app.include_router(friends.router)
 app.include_router(chat.router)
 
+
 if __name__ == "__main__":
-    # Выполняем миграции БД до запуска Uvicorn (пока Event Loop не создан)
+    # Run database migrations before starting Uvicorn
     import logging
     from alembic.config import Config
     from alembic import command
-    from app.core.config import settings
     
     logging.info("Running database migrations...")
     try:
@@ -59,8 +65,7 @@ if __name__ == "__main__":
         logging.info("Database migrations completed.")
     except Exception as e:
         logging.error(f"Failed to run migrations: {e}")
-        # Если миграции не удалось применить, останавливаем сервер
         sys.exit(1)
 
-    # Запускаем Uvicorn на хосте и порту из конфигурации
+    # Start Uvicorn with configured host and port
     uvicorn.run("app.main:app", host=settings.host, port=settings.port)
