@@ -1,12 +1,17 @@
+"""WebSocket connection manager."""
+
 import asyncio
-from fastapi import WebSocket
 from typing import Dict
-from sqlalchemy import select, and_, or_
+
+from fastapi import WebSocket
+
 from app.database import async_session_maker
-from app.core import encrypt_message, decrypt_message
+from app.core.security import encrypt_message, decrypt_message
 from app.models import Friendship, OfflineMessage, User
 
+
 async def get_user_friends(username: str) -> list:
+    """Get list of friends for a user."""
     async with async_session_maker() as session:
         result = await session.execute(
             select(Friendship).where(
@@ -25,19 +30,22 @@ async def get_user_friends(username: str) -> list:
                 friends.append(f.requester)
         return friends
 
+
 class ConnectionManager:
+    """Manages active WebSocket connections."""
+
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
 
     async def connect(self, websocket: WebSocket, username: str):
+        """Accept WebSocket connection and store it."""
         await websocket.accept()
         self.active_connections[username] = websocket
         
-        
-        # Уведомляем друзей, что мы в сети
+        # Notify friends that user is online
         await self.notify_friends_status(username, True)
 
-        # Выгрузка офлайн сообщений
+        # Load offline messages
         async with async_session_maker() as session:
             result = await session.execute(
                 select(OfflineMessage).where(OfflineMessage.receiver == username)
@@ -49,19 +57,29 @@ class ConnectionManager:
                 except Exception:
                     text = "[не удалось расшифровать сообщение]"
                     
-                await websocket.send_json({"action": "message", "from": row.sender, "text": text, "cid": row.cid or f"offline_{row.id}"})
+                await websocket.send_json({
+                    "action": "message",
+                    "from": row.sender,
+                    "text": text,
+                    "cid": row.cid or f"offline_{row.id}"
+                })
                 await session.delete(row)
             if rows:
                 await session.commit()
 
     async def disconnect(self, username: str):
+        """Remove WebSocket connection and notify friends."""
         self.active_connections.pop(username, None)
-        # Уведомляем друзей, что мы вышли
+        # Notify friends that user is offline
         await self.notify_friends_status(username, False)
 
     async def send_message(self, text: str, receiver: str, sender: str, cid: str):
+        """Send message to receiver or store as offline."""
         if sender in self.active_connections:
-            await self.active_connections[sender].send_json({"action": "ack", "cid": cid})
+            await self.active_connections[sender].send_json({
+                "action": "ack",
+                "cid": cid
+            })
 
         if receiver in self.active_connections:
             await self.active_connections[receiver].send_json(
@@ -79,17 +97,19 @@ class ConnectionManager:
                 await session.commit()
     
     async def forward_event(self, action: str, receiver: str, sender: str, cid: str):
-        # Пересылка системных событий (например, read receipt)
+        """Forward system events (e.g., read receipts)."""
         if receiver in self.active_connections:
             await self.active_connections[receiver].send_json(
                 {"action": action, "from": sender, "cid": cid}
             )
 
     async def notify_user(self, username: str, data: dict):
+        """Send notification to a specific user."""
         if username in self.active_connections:
             await self.active_connections[username].send_json(data)
 
     async def notify_friends_status(self, username: str, online: bool):
+        """Notify all friends about user's online status change."""
         friends = await get_user_friends(username)
         for friend in friends:
             if friend in self.active_connections:
@@ -99,4 +119,8 @@ class ConnectionManager:
                     "online": online
                 })
 
+
 manager = ConnectionManager()
+
+# Import here to avoid circular imports
+from sqlalchemy import select, and_, or_
