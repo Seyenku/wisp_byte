@@ -35,8 +35,13 @@ async def websocket_endpoint(websocket: WebSocket, token: str = ""):
             return
 
     if username in manager.active_connections:
-        await websocket.close(code=4409, reason="Already connected")
-        return
+        # Закрываем старое соединение, чтобы разрешить новое (защита от "зависших" сессий)
+        old_ws = manager.active_connections[username]
+        try:
+            await old_ws.close(code=4000, reason="Connected from another location")
+        except:
+            pass
+        await manager.disconnect(username)
 
     await manager.connect(websocket, username)
     try:

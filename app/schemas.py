@@ -14,3 +14,7 @@ class FriendActionRequest(BaseModel):
 class UserSearchItem(BaseModel):
     username: str
     status: str # 'none', 'pending_sent', 'pending_received', 'friends'
+
+class FriendSuggestion(BaseModel):
+    username: str
+    mutual_count: int

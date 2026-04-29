@@ -4,7 +4,7 @@ from sqlalchemy import select, or_, and_
 
 from app.database import get_db_session
 from app.security import get_current_user
-from app.schemas import FriendActionRequest, UserSearchItem
+from app.schemas import FriendActionRequest, UserSearchItem, FriendSuggestion
 from app.models import User, Friendship
 from typing import List
 
@@ -215,3 +215,53 @@ async def get_friends_list(current_user: str = Depends(get_current_user), sessio
             
     from app.ws_manager import manager
     return [{"username": f, "online": f in manager.active_connections} for f in friends]
+
+@router.get("/suggestions", response_model=List[FriendSuggestion])
+async def get_friend_suggestions(current_user: str = Depends(get_current_user), session: AsyncSession = Depends(get_db_session)):
+    # 1. Находим всех, с кем уже есть любая связь (друзья или заявки)
+    all_rel_query = select(Friendship).where(
+        or_(Friendship.requester == current_user, Friendship.addressee == current_user)
+    )
+    all_rel_result = await session.execute(all_rel_query)
+    related_users = {current_user}
+    my_friends = set()
+    
+    for f in all_rel_result.scalars().all():
+        other = f.addressee if f.requester == current_user else f.requester
+        related_users.add(other)
+        if f.status == 'accepted':
+            my_friends.add(other)
+    
+    if not my_friends:
+        return []
+
+    # 2. Находим друзей наших друзей (второй круг)
+    suggestions_query = select(Friendship).where(
+        and_(
+            or_(Friendship.requester.in_(my_friends), Friendship.addressee.in_(my_friends)),
+            Friendship.status == 'accepted',
+            ~Friendship.requester.in_(related_users),
+            ~Friendship.addressee.in_(related_users)
+        )
+    )
+    
+    # SQLite не всегда оптимально переваривает NOT IN с большим списком, но для хобби-проекта ок.
+    # Используем тильду (~) для инверсии в SQLAlchemy
+    
+    suggestions_result = await session.execute(suggestions_query)
+    potential_friendships = suggestions_result.scalars().all()
+    
+    counts = {}
+    for f in potential_friendships:
+        p1, p2 = f.requester, f.addressee
+        # Один из участников — наш друг, второй — кандидат
+        candidate = p1 if p1 not in my_friends else p2
+        
+        # Дополнительная проверка на исключение
+        if candidate not in related_users:
+            counts[candidate] = counts.get(candidate, 0) + 1
+            
+    # 3. Сортируем и возвращаем топ-5
+    sorted_suggestions = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:5]
+    
+    return [FriendSuggestion(username=name, mutual_count=cnt) for name, cnt in sorted_suggestions]

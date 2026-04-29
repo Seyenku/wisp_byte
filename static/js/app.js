@@ -426,17 +426,28 @@ async function auth(endpoint) {
 
 function logout() {
     localStorage.removeItem('token');
+    token = null;
     if(ws) ws.close();
-    location.reload();
+    // Перезагрузка только если мы были внутри приложения
+    if (!document.getElementById('app-container').classList.contains('hidden')) {
+        location.reload();
+    }
 }
 
 function parseMyUsername() {
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
+        const now = Math.floor(Date.now() / 1000);
+        if (payload.exp && payload.exp < now) {
+            logout();
+            return;
+        }
         myUsername = payload.sub;
         document.getElementById('my-username').innerText = myUsername;
         document.getElementById('my-avatar').innerText = myUsername.charAt(0).toUpperCase();
-    } catch(e) { logout(); }
+    } catch(e) { 
+        logout(); 
+    }
 }
 
 function showApp() {
@@ -452,6 +463,7 @@ function showApp() {
     
     loadFriends();
     loadRequests();
+    loadSuggestions();
     connectWS();
 }
 
@@ -548,6 +560,42 @@ async function loadRequests() {
     } catch (e) { showToast(e.message, "error"); }
 }
 
+async function loadSuggestions() {
+    try {
+        const suggestions = await apiRequest('/friends/suggestions');
+        const list = document.getElementById('suggestions-list');
+        if (suggestions.length === 0) {
+            list.classList.add('hidden');
+            return;
+        }
+        list.classList.remove('hidden');
+        list.innerHTML = `
+            <div class="sidebar-section-title">
+                <span>Возможные друзья</span>
+            </div>`;
+        
+        suggestions.forEach(s => {
+            const div = document.createElement('div');
+            div.className = 'user-item';
+            div.style.cursor = "default";
+            
+            const avatar = s.username.charAt(0).toUpperCase();
+            
+            div.innerHTML = `
+                <div class="user-avatar-sm">${avatar}</div>
+                <div class="user-info-wrap">
+                    <div class="user-item-name">${s.username}</div>
+                    <div class="user-item-status">${s.mutual_count} общих</div>
+                </div>
+                <div>
+                    <button class="icon-btn glass-icon" onclick="friendAction('/friends/request', '${s.username}')" style="width:32px;height:32px;border-color:var(--accent-cyan);color:var(--accent-cyan);">+</button>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+    } catch (e) { console.error("Ошибка загрузки рекомендаций:", e); }
+}
+
 function searchUsers() {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(async () => {
@@ -620,6 +668,7 @@ async function friendAction(endpoint, target_username) {
         searchUsers(); 
         loadFriends(); 
         loadRequests();
+        loadSuggestions();
     } catch (e) { showToast(e.message, "error"); }
 }
 
@@ -735,6 +784,11 @@ function connectWS() {
             return;
         }
 
+        if (data.action === "user_status") {
+            loadFriends();
+            return;
+        }
+
         if (data.action === "message" && data.from) {
             saveMessageLocally(data.from, data.from, data.text, data.cid, "read");
             if (data.from === currentChatUser) {
@@ -824,19 +878,23 @@ function appendMessage(type, text, cid, status) {
     msgDiv.className = `msg msg-${type}`;
     msgDiv.id = `msg-${cid}`;
     
-    let statusHtml = '';
+    // Безопасная вставка текста (защита от XSS)
+    const textContent = document.createElement("span");
+    textContent.className = "msg-text";
+    textContent.textContent = text;
+    msgDiv.appendChild(textContent);
+    
     if (type === 'me') {
-        let iconHtml = '<i class="fa-regular fa-clock"></i>';
-        if (status === 'sent') iconHtml = '<i class="fa-solid fa-check"></i>';
-        else if (status === 'read') iconHtml = '<i class="fa-solid fa-check-double"></i>';
-        
-        statusHtml = `<span class="msg-status status-${status}">${iconHtml}</span>`;
+        const statusSpan = document.createElement("span");
+        const states = {
+            'pending': '<i class="fa-regular fa-clock"></i>',
+            'sent': '<i class="fa-solid fa-check"></i>',
+            'read': '<i class="fa-solid fa-check-double"></i>'
+        };
+        statusSpan.className = `msg-status status-${status}`;
+        statusSpan.innerHTML = states[status] || states['pending'];
+        msgDiv.appendChild(statusSpan);
     }
-    
-    const safeText = document.createElement('div');
-    safeText.innerText = text;
-    
-    msgDiv.innerHTML = `${safeText.innerHTML}${statusHtml}`;
     
     const box = document.getElementById("messages");
     box.appendChild(msgDiv);

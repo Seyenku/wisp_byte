@@ -58,8 +58,8 @@ if __name__ == "__main__":
         logging.info("Database migrations completed.")
     except Exception as e:
         logging.error(f"Failed to run migrations: {e}")
-        # Для случаев, когда alembic.ini не найден или БД недоступна
-        pass
+        # Если миграции не удалось применить, останавливаем сервер
+        sys.exit(1)
 
     # Запускаем Uvicorn на хосте и порту из конфигурации
     uvicorn.run("app.main:app", host=settings.host, port=settings.port)

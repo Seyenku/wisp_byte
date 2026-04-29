@@ -34,6 +34,9 @@ class ConnectionManager:
         self.active_connections[username] = websocket
         
         
+        # Уведомляем друзей, что мы в сети
+        await self.notify_friends_status(username, True)
+
         # Выгрузка офлайн сообщений
         async with async_session_maker() as session:
             result = await session.execute(
@@ -53,6 +56,8 @@ class ConnectionManager:
 
     async def disconnect(self, username: str):
         self.active_connections.pop(username, None)
+        # Уведомляем друзей, что мы вышли
+        await self.notify_friends_status(username, False)
 
     async def send_message(self, text: str, receiver: str, sender: str, cid: str):
         if sender in self.active_connections:
@@ -83,5 +88,15 @@ class ConnectionManager:
     async def notify_user(self, username: str, data: dict):
         if username in self.active_connections:
             await self.active_connections[username].send_json(data)
+
+    async def notify_friends_status(self, username: str, online: bool):
+        friends = await get_user_friends(username)
+        for friend in friends:
+            if friend in self.active_connections:
+                await self.active_connections[friend].send_json({
+                    "action": "user_status",
+                    "user": username,
+                    "online": online
+                })
 
 manager = ConnectionManager()

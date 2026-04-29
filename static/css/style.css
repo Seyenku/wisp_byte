@@ -130,6 +130,10 @@ body {
     display: none;
 }
 
+.hidden {
+    display: none !important;
+}
+
 .auth-glass-panel {
     padding: 48px;
     text-align: center;
@@ -668,6 +672,13 @@ body {
     justify-content: center;
     gap: 16px;
     padding: 40px;
+}
+
+.chat-active-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .chat-empty-icon-wrap {
