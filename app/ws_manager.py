@@ -3,8 +3,8 @@ from fastapi import WebSocket
 from typing import Dict
 from sqlalchemy import select, and_, or_
 from app.database import async_session_maker
-from app.security import encrypt_message, decrypt_message
-from app.models import Friendship, OfflineMessage
+from app.core import encrypt_message, decrypt_message
+from app.models import Friendship, OfflineMessage, User
 
 async def get_user_friends(username: str) -> list:
     async with async_session_maker() as session:

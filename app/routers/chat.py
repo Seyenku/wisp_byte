@@ -4,9 +4,9 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import select, or_, and_
 
 from app.database import async_session_maker
-from app.security import decode_jwt
+from app.core import decode_jwt
 from app.ws_manager import manager
-from app.models import User, Friendship
+from app.models import User, OfflineMessage, Friendship
 
 router = APIRouter(tags=["Чат"])
 
