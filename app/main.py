@@ -11,7 +11,7 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.rate_limiter import limiter
 from app.database import engine
-from app.routers import auth, chat, friends
+from app.routers import router_auth, router_chat, router_friends
 
 
 # Modern lifespan manager for FastAPI application lifecycle
@@ -47,9 +47,9 @@ async def favicon():
 
 
 # Register routers
-app.include_router(auth.router)
-app.include_router(friends.router)
-app.include_router(chat.router)
+app.include_router(router_auth.router)
+app.include_router(router_friends.router)
+app.include_router(router_chat.router)
 
 
 if __name__ == "__main__":

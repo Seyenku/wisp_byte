@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db_session
 from app.core.security import get_current_user
-from app.services.auth import AuthService
-from app.services.friend import FriendService
-from app.services.message import MessageService
-from app.services.user import UserService
+from app.services.service_auth import AuthService
+from app.services.service_friend import FriendService
+from app.services.service_message import MessageService
+from app.services.service_user import UserService
 
 
 def get_auth_service(session: AsyncSession = Depends(get_db_session)) -> AuthService:

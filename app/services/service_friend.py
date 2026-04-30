@@ -4,8 +4,8 @@ from typing import List, Dict, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.user import UserRepository
-from app.repositories.friendship import FriendshipRepository
+from app.repositories.repos_user import UserRepository
+from app.repositories.repos_friendship import FriendshipRepository
 from app.models import User
 
 

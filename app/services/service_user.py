@@ -4,7 +4,7 @@ from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.user import UserRepository
+from app.repositories.repos_user import UserRepository
 
 
 class UserService:

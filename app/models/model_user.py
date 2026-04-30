@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String
-
+from app.database import Base
 
 class User:
     """User model for authentication."""

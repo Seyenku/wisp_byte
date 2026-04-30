@@ -1,6 +1,9 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.declarative import declarative_base
 from typing import AsyncGenerator
 from app.core.config import settings
+
+Base = declarative_base()
 
 engine_kwargs = {"echo": False, "future": True}
 if "sqlite" not in settings.database_url:

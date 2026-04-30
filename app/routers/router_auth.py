@@ -5,7 +5,7 @@ from app.database import get_db_session
 from app.schemas import RegisterRequest, TokenResponse
 from app.core.rate_limiter import limiter
 from app.dependencies import get_auth_service
-from app.services.auth import AuthService
+from app.services.service_auth import AuthService
 
 
 router = APIRouter(tags=["Авторизация"])

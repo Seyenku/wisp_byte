@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse
 from app.database import async_session_maker
 from app.core.security import decode_jwt
 from app.core.websocket import manager
-from app.services.message import MessageService
+from app.services.service_message import MessageService
 from app.dependencies import get_message_service
 from app.models import User
 

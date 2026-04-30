@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from app.database import get_db_session
 from app.core.security import get_current_user
 from app.dependencies import get_friend_service
-from app.services.friend import FriendService
+from app.services.service_friend import FriendService
 from app.schemas import FriendActionRequest, UserSearchItem, FriendSuggestion
 from typing import List
 

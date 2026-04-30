@@ -4,7 +4,7 @@ from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.friendship import FriendshipRepository
+from app.repositories.repos_friendship import FriendshipRepository
 
 
 class MessageService:

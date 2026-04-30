@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, Integer, UniqueConstraint
-
+from app.database import Base
 
 class Friendship:
     """Model for friendship relationships."""

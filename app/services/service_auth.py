@@ -5,7 +5,7 @@ from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.user import UserRepository
+from app.repositories.repos_user import UserRepository
 from app.core.security import hash_password, verify_password, create_jwt, DUMMY_HASH
 from app.models import User
 
