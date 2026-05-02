@@ -1,6 +1,7 @@
 import os
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 
 from app.database import async_session_maker
 from app.core.security import decode_jwt
@@ -10,19 +11,30 @@ from app.dependencies import get_message_service
 from app.models import User
 
 
+# Setup templates locally to avoid circular import
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+
 router = APIRouter(tags=["Чат"])
 
 
 @router.get("/")
-async def get():
+async def get(request: Request):
     """Serve the main chat page."""
-    html_path = os.path.join("templates", "index.html")
-    try:
-        with open(html_path, "r", encoding="utf-8") as f:
-            html_content = f.read()
-        return HTMLResponse(html_content)
-    except FileNotFoundError:
-        return HTMLResponse("<h1>Создайте папку templates и положите туда index.html</h1>")
+    # Get user from JWT token in cookies or headers
+    token = request.cookies.get("access_token") or request.headers.get("Authorization", "").replace("Bearer ", "")
+    username = decode_jwt(token) if token else None
+    
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "username": username or "Гость",
+            "user_id": 0  # Will be populated by frontend after login
+        }
+    )
 
 
 @router.websocket("/ws")
