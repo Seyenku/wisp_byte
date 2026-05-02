@@ -1,177 +1,51 @@
 ```
-# Environment variables
+# Database files
+*.db
+
+# Environment files
 .env
 .env.local
-*.env.*
-
-# Dependencies
-.venv/
-venv/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Build artifacts
-dist/
-build/
-*.egg-info/
+.env.*
 
 # Logs
 *.log
 
-# Editor/IDE files
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.egg-info/
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Editor files
 .vscode/
 .idea/
 *.swp
 *.swo
 *.tmp
 
-# OS generated files
+# OS files
 .DS_Store
 Thumbs.db
 
-# Coverage reports
-.coverage
+# Coverage
 coverage/
 htmlcov/
+.coverage
 
 # Python specific
+*.pyc
+*.pyo
+*.pyd
 .Python
 *.so
-*.pyc
-*.pyo
-*.pyd
-*.py~
-*.pyc
-*.pyo
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo
-*.pyd
-*.pyc
-*.pyo......
+
+# Testing
+.pytest_cache/
+.mypy_cache/
 ```

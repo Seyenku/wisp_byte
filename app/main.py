@@ -9,6 +9,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.requests import Request
 import uvicorn
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -37,7 +39,12 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Setup static files using BASE_DIR
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+# Setup Jinja2 templates
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
 @app.get('/favicon.ico', include_in_schema=False)
