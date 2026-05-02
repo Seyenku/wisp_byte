@@ -10,3 +10,4 @@ alembic
 pydantic-settings
 python-dotenv
 slowapi
+jinja2
