@@ -28,8 +28,8 @@ async def get(request: Request):
     username = decode_jwt(token) if token else None
     
     return templates.TemplateResponse(
-        "index.html",
-        {
+        name="index.html",
+        context={
             "request": request,
             "username": username or "Гость",
             "user_id": 0  # Will be populated by frontend after login
