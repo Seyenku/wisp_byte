@@ -1,12 +1,12 @@
 """WebSocket connection manager."""
 
 import asyncio
-from typing import Dict
-
-from fastapi import WebSocket
+from typing import Dict, Set
+from fastapi import WebSocket, WebSocketDisconnect, HTTPException
+from sqlalchemy import select, and_, or_
 
 from app.database import async_session_maker
-from app.core.security import encrypt_message, decrypt_message
+from app.core.security import encrypt_message, decrypt_message, decode_jwt
 from app.models import Friendship, OfflineMessage, User
 
 
@@ -36,22 +36,34 @@ class ConnectionManager:
 
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
+        # Track IP addresses for rate limiting
+        self.ip_connections: Dict[str, Set[str]] = {}
 
-    async def connect(self, websocket: WebSocket, username: str):
+    async def connect(self, websocket: WebSocket, username: str, token: str = None):
         """Accept WebSocket connection and store it."""
+        # Validate token if provided (for security)
+        if token:
+            token_username = decode_jwt(token)
+            if not token_username or token_username != username:
+                raise WebSocketDisconnect(code=4001, reason="Invalid token")
+        
         await websocket.accept()
         self.active_connections[username] = websocket
         
         # Notify friends that user is online
         await self.notify_friends_status(username, True)
 
-        # Load offline messages
+        # Load offline messages (limit to 100 most recent for performance)
         async with async_session_maker() as session:
             result = await session.execute(
-                select(OfflineMessage).where(OfflineMessage.receiver == username)
+                select(OfflineMessage)
+                .where(OfflineMessage.receiver == username)
+                .order_by(OfflineMessage.id.desc())
+                .limit(100)
             )
             rows = result.scalars().all()
-            for row in rows:
+            # Process in reverse order to show oldest first
+            for row in reversed(rows):
                 try:
                     text = decrypt_message(row.ciphertext)
                 except Exception:
@@ -111,16 +123,14 @@ class ConnectionManager:
     async def notify_friends_status(self, username: str, online: bool):
         """Notify all friends about user's online status change."""
         friends = await get_user_friends(username)
-        for friend in friends:
-            if friend in self.active_connections:
-                await self.active_connections[friend].send_json({
-                    "action": "user_status",
-                    "user": username,
-                    "online": online
-                })
+        # Use set for O(1) lookup when checking connections
+        active_friends = [f for f in friends if f in self.active_connections]
+        for friend in active_friends:
+            await self.active_connections[friend].send_json({
+                "action": "user_status",
+                "user": username,
+                "online": online
+            })
 
 
 manager = ConnectionManager()
-
-# Import here to avoid circular imports
-from sqlalchemy import select, and_, or_

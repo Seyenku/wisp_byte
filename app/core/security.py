@@ -14,8 +14,10 @@ from fastapi.security import OAuth2PasswordBearer
 from app.core.config import settings
 
 
-# Message encryption key
-fernet = Fernet(settings.msg_encryption_key.encode())
+# Message encryption key - initialized from validated settings
+def get_fernet_instance() -> Fernet:
+    """Get Fernet instance with validated encryption key."""
+    return Fernet(settings.encryption_key.encode())
 
 
 def hash_password(plain: str) -> str:
@@ -58,11 +60,13 @@ def decode_jwt(token: str) -> Optional[str]:
 
 def encrypt_message(text: str) -> str:
     """Encrypt a message using Fernet symmetric encryption."""
+    fernet = get_fernet_instance()
     return fernet.encrypt(text.encode()).decode()
 
 
 def decrypt_message(ciphertext: str) -> str:
     """Decrypt a message using Fernet symmetric encryption."""
+    fernet = get_fernet_instance()
     return fernet.decrypt(ciphertext.encode()).decode()
 
 

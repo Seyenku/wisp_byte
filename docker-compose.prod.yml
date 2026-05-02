@@ -1,0 +1,40 @@
+# Production Docker Compose configuration for WispChat
+# Optimized for single-container deployment with SQLite
+
+services:
+  wispchat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wispchat-production
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persistent volume for SQLite database
+      - wispchat_data:/app/data
+      # Mount .env file for configuration
+      - ./.env:/app/.env:ro
+    environment:
+      - APP_ENV=production
+      - DEBUG=false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+volumes:
+  wispchat_data:
+    driver: local
+    name: wispchat_production_data

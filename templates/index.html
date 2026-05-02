@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ru" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WispChat - Безопасный мессенджер</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <!-- Animated Background -->
+    <canvas id="nebula-canvas"></canvas>
+    <div class="bg-gradients"></div>
+
+    <!-- Main Container -->
+    <div class="container-fluid vh-100 overflow-hidden position-relative" style="z-index: 1;">
+        <div class="row h-100 g-0">
+            
+            <!-- Sidebar: Список контактов -->
+            <div class="col-md-4 col-lg-3 sidebar-glass-panel contacts-panel-mobile d-flex flex-column" id="contacts-panel">
+                <!-- Header -->
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center" style="border-color: var(--border-glass) !important;">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="avatar-placeholder" id="user-avatar-initials">U</div>
+                        <div>
+                            <h6 class="m-0 fw-semibold" id="current-username">Пользователь</h6>
+                            <small class="text-success" id="current-user-status">
+                                <span class="status-indicator status-online"></span>Онлайн
+                            </small>
+                        </div>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-link text-decoration-none p-0" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-three-dots-vertical" style="color: var(--fg-primary);"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" style="background-color: var(--bg-panel); border-color: var(--border-glass);">
+                            <li><a class="dropdown-item" href="#" style="color: var(--fg-primary);" data-bs-toggle="modal" data-bs-target="#profileModal">
+                                <i class="bi bi-person me-2"></i>Профиль
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" style="color: var(--fg-primary);" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                                <i class="bi bi-gear me-2"></i>Настройки
+                            </a></li>
+                            <li><hr class="dropdown-divider" style="border-color: var(--border-glass);"></li>
+                            <li><a class="dropdown-item text-danger" href="/logout">
+                                <i class="bi bi-box-arrow-right me-2"></i>Выйти
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Search -->
+                <div class="p-2">
+                    <div class="input-group">
+                        <span class="input-group-text" style="background-color: var(--bg-panel-light); border-color: var(--border-glass); color: var(--fg-muted);">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" class="form-control search-input-glass" id="contact-search" placeholder="Поиск контактов...">
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="px-2 pb-2">
+                    <ul class="nav nav-pills nav-fill" id="contact-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active py-2" id="chats-tab" data-bs-toggle="pill" data-bs-target="#chats" type="button" role="tab" style="font-size: 0.85rem;">
+                                Чаты
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link py-2" id="friends-tab" data-bs-toggle="pill" data-bs-target="#friends" type="button" role="tab" style="font-size: 0.85rem;">
+                                Друзья
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Contact List -->
+                <div class="tab-content flex-grow-1 overflow-auto bootstrap-scroll" id="contact-lists">
+                    <!-- Chats Tab -->
+                    <div class="tab-pane fade show active" id="chats" role="tabpanel">
+                        <div class="list-group list-group-flush" id="chats-list">
+                            <!-- Chat items will be dynamically loaded here -->
+                            <div class="text-center py-4 text-muted">
+                                <i class="bi bi-chat-square-text fs-3 d-block mb-2"></i>
+                                <small>Нет активных чатов</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Friends Tab -->
+                    <div class="tab-pane fade" id="friends" role="tabpanel">
+                        <div class="list-group list-group-flush" id="friends-list">
+                            <!-- Friend items will be dynamically loaded here -->
+                            <div class="text-center py-4 text-muted">
+                                <i class="bi bi-people fs-3 d-block mb-2"></i>
+                                <small>Список друзей пуст</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Friend Button (Mobile) -->
+                <div class="p-2 border-top d-md-none" style="border-color: var(--border-glass) !important;">
+                    <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#addFriendModal">
+                        <i class="bi bi-person-plus me-2"></i>Добавить друга
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main: Окно чата -->
+            <div class="col-md-8 col-lg-9 chat-area-panel chat-panel-mobile d-flex flex-column" id="chat-panel">
+                <!-- Empty State (when no chat selected) -->
+                <div class="d-flex flex-column align-items-center justify-content-center h-100" id="empty-chat-state">
+                    <div class="text-center">
+                        <i class="bi bi-chat-heart fs-1 mb-3" style="color: var(--accent-cyan);"></i>
+                        <h5 class="fw-semibold">Добро пожаловать в WispChat</h5>
+                        <p class="text-muted">Выберите чат или начните новый диалог</p>
+                        <button class="btn btn-primary mt-2 d-md-none" onclick="showContacts()">
+                            <i class="bi bi-arrow-left me-2"></i>К списку чатов
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Chat (hidden by default) -->
+                <div class="d-flex flex-column h-100 d-none" id="active-chat-container">
+                    <!-- Chat Header -->
+                    <div class="chat-header-glass p-3 border-bottom d-flex justify-content-between align-items-center" style="border-color: var(--border-glass) !important;">
+                        <div class="d-flex align-items-center">
+                            <button class="btn btn-link back-btn-mobile p-0 me-2" onclick="showContacts()">
+                                <i class="bi bi-arrow-left" style="color: var(--fg-primary); font-size: 1.2rem;"></i>
+                            </button>
+                            <img src="" alt="Avatar" class="rounded-circle me-2" width="40" height="40" id="chat-avatar" style="object-fit: cover; border: 2px solid var(--accent-cyan);">
+                            <div>
+                                <h6 class="mb-0 fw-semibold" id="chat-name">Имя контакта</h6>
+                                <small id="chat-status" class="text-success">
+                                    <span class="status-indicator status-online"></span>Онлайн
+                                </small>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-secondary btn-sm" title="Голосовой звонок" style="border-color: var(--border-glass); color: var(--fg-primary);">
+                                <i class="bi bi-telephone"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" title="Видеозвонок" style="border-color: var(--border-glass); color: var(--fg-primary);">
+                                <i class="bi bi-camera-video"></i>
+                            </button>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="dropdown" style="border-color: var(--border-glass); color: var(--fg-primary);">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" style="background-color: var(--bg-panel); border-color: var(--border-glass);">
+                                    <li><a class="dropdown-item" href="#" style="color: var(--fg-primary);">
+                                        <i class="bi bi-info-circle me-2"></i>Информация
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" style="color: var(--fg-primary);">
+                                        <i class="bi bi-bell-slash me-2"></i>Отключить уведомления
+                                    </a></li>
+                                    <li><hr class="dropdown-divider" style="border-color: var(--border-glass);"></li>
+                                    <li><a class="dropdown-item text-danger" href="#" style="color: var(--fg-primary);">
+                                        <i class="bi bi-trash me-2"></i>Очистить историю
+                                    </a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Messages Area -->
+                    <div class="flex-grow-1 overflow-auto bootstrap-scroll p-3" id="messages-container">
+                        <!-- Date Separator Example -->
+                        <div class="date-separator">
+                            <small>Сегодня</small>
+                        </div>
+                        
+                        <!-- Messages will be dynamically loaded here -->
+                    </div>
+
+                    <!-- Typing Indicator (hidden by default) -->
+                    <div class="px-3 d-none" id="typing-indicator-container">
+                        <div class="typing-indicator">
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                            <small class="text-muted ms-2">печатает...</small>
+                        </div>
+                    </div>
+
+                    <!-- Input Area -->
+                    <div class="chat-input-glass p-3 border-top" style="border-color: var(--border-glass) !important;">
+                        <form class="d-flex gap-2" id="message-form">
+                            <button type="button" class="btn btn-outline-secondary" title="Прикрепить файл" style="border-color: var(--border-glass); color: var(--fg-primary);">
+                                <i class="bi bi-paperclip"></i>
+                            </button>
+                            <div class="flex-grow-1 position-relative">
+                                <textarea 
+                                    class="form-control" 
+                                    placeholder="Напишите сообщение..." 
+                                    id="message-input" 
+                                    rows="1"
+                                    style="resize: none;"
+                                ></textarea>
+                                <button type="button" class="btn btn-link position-absolute bottom-0 end-0 p-0" title="Эмодзи" style="color: var(--fg-muted);">
+                                    <i class="bi bi-emoji-smile"></i>
+                                </button>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="send-btn" disabled>
+                                <i class="bi bi-send-fill"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Profile Modal -->
+    <div class="modal fade" id="profileModal" tabindex="-1" aria-labelledby="profileModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background-color: var(--bg-panel); border-color: var(--border-glass);">
+                <div class="modal-header border-bottom" style="border-color: var(--border-glass) !important;">
+                    <h5 class="modal-title" id="profileModalLabel" style="color: var(--fg-primary);">Мой профиль</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-4">
+                        <div class="avatar-placeholder mx-auto mb-2" style="width: 80px; height: 80px; font-size: 2rem;" id="modal-avatar-initials">U</div>
+                        <h5 id="modal-username">Пользователь</h5>
+                        <small class="text-muted">ID: <span id="modal-user-id">-</span></small>
+                    </div>
+                    <form id="profile-form">
+                        <div class="mb-3">
+                            <label class="form-label" style="color: var(--fg-primary);">Имя пользователя</label>
+                            <input type="text" class="form-control search-input-glass" id="profile-username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" style="color: var(--fg-primary);">Статус</label>
+                            <select class="form-select search-input-glass" id="profile-status">
+                                <option value="online">Онлайн</option>
+                                <option value="away">Отошел</option>
+                                <option value="offline">Невидимка</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-top" style="border-color: var(--border-glass) !important;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-color: var(--border-glass);">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="save-profile-btn">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background-color: var(--bg-panel); border-color: var(--border-glass);">
+                <div class="modal-header border-bottom" style="border-color: var(--border-glass) !important;">
+                    <h5 class="modal-title" id="settingsModalLabel" style="color: var(--fg-primary);">Настройки</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3 form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="notifications-toggle" checked>
+                        <label class="form-check-label" for="notifications-toggle" style="color: var(--fg-primary);">Уведомления</label>
+                    </div>
+                    <div class="mb-3 form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="sound-toggle" checked>
+                        <label class="form-check-label" for="sound-toggle" style="color: var(--fg-primary);">Звуковые уведомления</label>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" style="color: var(--fg-primary);">Тема оформления</label>
+                        <select class="form-select search-input-glass" id="theme-toggle">
+                            <option value="dark">Тёмная</option>
+                            <option value="light">Светлая</option>
+                            <option value="auto">Авто (системная)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Friend Modal -->
+    <div class="modal fade" id="addFriendModal" tabindex="-1" aria-labelledby="addFriendModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background-color: var(--bg-panel); border-color: var(--border-glass);">
+                <div class="modal-header border-bottom" style="border-color: var(--border-glass) !important;">
+                    <h5 class="modal-title" id="addFriendModalLabel" style="color: var(--fg-primary);">Добавить друга</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-friend-form">
+                        <div class="mb-3">
+                            <label class="form-label" style="color: var(--fg-primary);">Username друга</label>
+                            <input type="text" class="form-control search-input-glass" id="friend-username" placeholder="Введите username" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-top" style="border-color: var(--border-glass) !important;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-color: var(--border-glass);">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="send-friend-request-btn">Отправить запрос</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>
