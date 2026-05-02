@@ -49,7 +49,8 @@ async def websocket_endpoint(websocket: WebSocket, token: str = ""):
             pass
         await manager.disconnect(username)
 
-    await manager.connect(websocket, username)
+    # Pass token for additional validation in connect method
+    await manager.connect(websocket, username, token)
     
     try:
         while True:
@@ -84,4 +85,11 @@ async def websocket_endpoint(websocket: WebSocket, token: str = ""):
             await manager.send_message(text, receiver, username, cid)
         
     except WebSocketDisconnect:
+        await manager.disconnect(username)
+    except Exception as e:
+        # Handle all other exceptions gracefully
+        try:
+            await websocket.send_json({"system": f"Ошибка: {str(e)}"})
+        except Exception:
+            pass
         await manager.disconnect(username)

@@ -1,15 +1,59 @@
+# Python artifacts
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
+*.so
+
+# Virtual environments
 env/
 venv/
 .venv/
 env.bak/
 venv.bak/
-chat.db
-.env
+
+# IDE files
 .git/
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# Database files (will be created at runtime)
+chat.db
+*.db
+data/
+
+# Environment files (should not be in production image)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Documentation
+docs/_build/
+*.md
+!README.md
+
+# Docker files (not needed inside container)
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Alembic migrations (already applied)
+alembic/versions/__pycache__/
+
+# Static files that are generated
+static/css/*.min.css
+static/js/*.min.js

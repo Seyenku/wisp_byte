@@ -1,6 +1,8 @@
 import os
 import sys
 
+# Add parent directory to path for Docker container compatibility
+# This is required when running inside a Docker container where the working directory differs
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from contextlib import asynccontextmanager
@@ -14,7 +16,6 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.rate_limiter import limiter
 from app.database import engine
-from app.routers import router_auth, router_chat, router_friends
 
 
 # Modern lifespan manager for FastAPI application lifecycle
@@ -27,13 +28,13 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
-app = FastAPI(title="Защищенный Чат-Сервер", lifespan=lifespan)
+app = FastAPI(title="WispChat - Secure Chat Server", lifespan=lifespan)
 
 # Configure rate limiting
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Setup static files
+# Setup static files using BASE_DIR
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -50,6 +51,8 @@ async def favicon():
 
 
 # Register routers
+from app.routers import router_auth, router_chat, router_friends
+
 app.include_router(router_auth.router)
 app.include_router(router_friends.router)
 app.include_router(router_chat.router)
@@ -61,14 +64,18 @@ if __name__ == "__main__":
     from alembic.config import Config
     from alembic import command
     
-    logging.info("Running database migrations...")
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    
+    logger.info("Running database migrations...")
     try:
         alembic_cfg = Config("alembic.ini")
         command.upgrade(alembic_cfg, "head")
-        logging.info("Database migrations completed.")
+        logger.info("Database migrations completed.")
     except Exception as e:
-        logging.error(f"Failed to run migrations: {e}")
+        logger.error(f"Failed to run migrations: {e}")
         sys.exit(1)
 
     # Start Uvicorn with configured host and port
+    logger.info(f"Starting server on {settings.host}:{settings.port}")
     uvicorn.run("app.main:app", host=settings.host, port=settings.port)
