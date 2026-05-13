@@ -82,35 +82,72 @@ function getCurrentUserData() {
 // WebSocket Connection
 // ============================================
 
+function showWsBanner(message, variant = 'warning') {
+    const banner = document.getElementById('ws-banner');
+    const text = document.getElementById('ws-banner-text');
+    if (!banner || !text) return;
+    text.textContent = message;
+    banner.classList.toggle('success', variant === 'success');
+    banner.classList.add('visible');
+}
+
+function hideWsBanner(delay = 0) {
+    const banner = document.getElementById('ws-banner');
+    if (!banner) return;
+    setTimeout(() => banner.classList.remove('visible'), delay);
+}
+
 function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/chat`;
-    
+
     try {
         chatState.ws = new WebSocket(wsUrl);
-        
+
         chatState.ws.onopen = () => {
             console.log('WebSocket connected');
-            showToast('Подключено к чату', 'success');
+            if (chatState.wasDisconnected) {
+                showWsBanner('Соединение восстановлено', 'success');
+                hideWsBanner(1500);
+                chatState.wasDisconnected = false;
+            }
+            chatState.reconnectAttempt = 0;
         };
-        
+
         chatState.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             handleWebSocketMessage(data);
         };
-        
+
         chatState.ws.onclose = () => {
             console.log('WebSocket disconnected');
-            // Attempt reconnection after 3 seconds
-            setTimeout(connectWebSocket, 3000);
+            chatState.wasDisconnected = true;
+            chatState.reconnectAttempt = (chatState.reconnectAttempt || 0) + 1;
+            startReconnectCountdown(3);
         };
-        
+
         chatState.ws.onerror = (error) => {
             console.error('WebSocket error:', error);
         };
     } catch (error) {
         console.error('Failed to connect WebSocket:', error);
+        startReconnectCountdown(3);
     }
+}
+
+function startReconnectCountdown(seconds) {
+    let remaining = seconds;
+    const update = () => showWsBanner(`Соединение потеряно. Переподключение через ${remaining}…`);
+    update();
+    const interval = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+            clearInterval(interval);
+            connectWebSocket();
+        } else {
+            update();
+        }
+    }, 1000);
 }
 
 function handleWebSocketMessage(data) {
@@ -224,16 +261,32 @@ function showChat() {
 // Chat Functions
 // ============================================
 
+function renderSkeletons(container, count = 4) {
+    if (!container) return;
+    const skeletons = Array.from({ length: count }).map((_, i) => `
+        <div class="skeleton-item" aria-hidden="true">
+            <div class="skeleton-shape skeleton-avatar"></div>
+            <div class="skeleton-lines">
+                <div class="skeleton-shape skeleton-line ${i % 2 ? 'medium' : 'long'}"></div>
+                <div class="skeleton-shape skeleton-line short"></div>
+            </div>
+        </div>
+    `).join('');
+    container.innerHTML = skeletons;
+}
+
 function loadChats() {
-    // This should fetch from API
-    // Mock data for demonstration
-    const mockChats = [
-        { id: 1, name: 'Алексей Иванов', lastMessage: 'Привет! Как дела?', time: '10:42', unread: 2, avatar: null },
-        { id: 2, name: 'Мария Петрова', lastMessage: 'Документ отправил', time: 'Вчера', unread: 0, avatar: null },
-        { id: 3, name: 'Рабочий чат', lastMessage: 'Встреча в 15:00', time: 'Вчера', unread: 5, avatar: null }
-    ];
-    
-    renderChats(mockChats);
+    renderSkeletons(elements.chatsList, 4);
+
+    // Simulated API latency (replace with real fetch)
+    setTimeout(() => {
+        const mockChats = [
+            { id: 1, name: 'Алексей Иванов', lastMessage: 'Привет! Как дела?', time: '10:42', unread: 2, avatar: null },
+            { id: 2, name: 'Мария Петрова', lastMessage: 'Документ отправил', time: 'Вчера', unread: 0, avatar: null },
+            { id: 3, name: 'Рабочий чат', lastMessage: 'Встреча в 15:00', time: 'Вчера', unread: 5, avatar: null }
+        ];
+        renderChats(mockChats);
+    }, 600);
 }
 
 function renderChats(chats) {
@@ -248,7 +301,7 @@ function renderChats(chats) {
     }
     
     elements.chatsList.innerHTML = chats.map(chat => `
-        <div class="list-group-item contact-item p-3" onclick="selectChat(${chat.id})" data-chat-id="${chat.id}">
+        <div class="list-group-item contact-item p-3" onclick="selectChat(${chat.id})" data-chat-id="${chat.id}"${chat.unread > 0 ? ' data-unread="true"' : ''}>
             <div class="d-flex w-100 justify-content-between align-items-center">
                 <div class="d-flex align-items-center">
                     ${getAvatarHTML(chat.name, chat.avatar)}
@@ -268,12 +321,19 @@ function renderChats(chats) {
 
 function selectChat(chatId) {
     chatState.activeChatId = chatId;
-    
+    chatState.unreadCounts.set(chatId, 0);
+
     // Update UI
     document.querySelectorAll('.contact-item').forEach(item => {
         item.classList.remove('active');
     });
-    document.querySelector(`[data-chat-id="${chatId}"]`)?.classList.add('active');
+    const activeItem = document.querySelector(`[data-chat-id="${chatId}"]`);
+    if (activeItem) {
+        activeItem.classList.add('active');
+        activeItem.removeAttribute('data-unread');
+        const badge = activeItem.querySelector('.badge-unread');
+        if (badge) badge.remove();
+    }
     
     // Show chat panel
     elements.emptyChatState.classList.add('d-none');
@@ -327,52 +387,71 @@ function renderMessages(messages) {
 function appendMessage(message) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `d-flex mb-3 ${message.is_own ? 'justify-content-end' : ''}`;
-    
+    if (message.cid) messageDiv.dataset.cid = message.cid;
+
     const avatarHTML = !message.is_own ? `
         <img src="" alt="" class="rounded-circle me-2 align-self-end" width="30" height="30" style="object-fit: cover;">
     ` : '';
-    
+
     const bubbleClass = message.is_own ? 'message-outgoing' : 'message-incoming';
     const time = formatMessageTime(message.timestamp);
-    
+    const status = message.status || (message.is_own ? 'sent' : null);
+    const statusAttr = message.is_own ? ` data-status="${status}"` : '';
+
     messageDiv.innerHTML = `
         ${avatarHTML}
-        <div class="${bubbleClass} p-2 shadow-sm message-bubble">
+        <div class="${bubbleClass} p-2 shadow-sm message-bubble"${statusAttr}>
             <p class="mb-1">${escapeHtml(message.content)}</p>
             <small class="message-time ${message.is_own ? 'text-white-50' : 'text-muted'}">
                 ${time}
-                ${message.is_own ? '<span class="read-status sent"></span>' : ''}
+                ${message.is_own ? `<span class="read-status ${status}"></span>` : ''}
             </small>
         </div>
     `;
-    
+
     elements.messagesContainer.appendChild(messageDiv);
     scrollToBottom();
+}
+
+function updateMessageStatus(cid, newStatus) {
+    const messageDiv = document.querySelector(`[data-cid="${cid}"]`);
+    if (!messageDiv) return;
+    const bubble = messageDiv.querySelector('.message-outgoing');
+    if (bubble) bubble.dataset.status = newStatus;
+    const readStatus = messageDiv.querySelector('.read-status');
+    if (readStatus) readStatus.className = `read-status ${newStatus}`;
 }
 
 function sendMessage() {
     const content = elements.messageInput.value.trim();
     if (!content || !chatState.activeChatId) return;
-    
+
+    const cid = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const message = {
         type: 'send_message',
         chat_id: chatState.activeChatId,
-        content: content
+        content: content,
+        cid: cid
     };
-    
+
     if (chatState.ws && chatState.ws.readyState === WebSocket.OPEN) {
         chatState.ws.send(JSON.stringify(message));
     }
-    
-    // Optimistically add message to UI
+
+    // Optimistically add message to UI with pending status
     appendMessage({
         id: Date.now(),
+        cid: cid,
         sender_id: chatState.currentUserId,
         content: content,
         timestamp: new Date().toISOString(),
-        is_own: true
+        is_own: true,
+        status: 'pending'
     });
-    
+
+    // Auto-promote to "sent" after 800ms (mock; real impl waits for ws ack)
+    setTimeout(() => updateMessageStatus(cid, 'sent'), 800);
+
     // Clear input
     elements.messageInput.value = '';
     autoResizeTextarea();
@@ -391,8 +470,25 @@ function handleNewMessage(data) {
     } else {
         // Update unread count
         const currentCount = chatState.unreadCounts.get(data.chat_id) || 0;
-        chatState.unreadCounts.set(data.chat_id, currentCount + 1);
-        
+        const newCount = currentCount + 1;
+        chatState.unreadCounts.set(data.chat_id, newCount);
+
+        // Mark contact-item with pulse ring + update badge
+        const chatItem = document.querySelector(`[data-chat-id="${data.chat_id}"]`);
+        if (chatItem) {
+            chatItem.setAttribute('data-unread', 'true');
+            let badge = chatItem.querySelector('.badge-unread');
+            if (!badge) {
+                const right = chatItem.querySelector('.flex-column.align-items-end');
+                if (right) {
+                    badge = document.createElement('span');
+                    badge.className = 'badge badge-unread mt-1';
+                    right.appendChild(badge);
+                }
+            }
+            if (badge) badge.textContent = newCount;
+        }
+
         // Show notification
         showToast(`Новое сообщение от ${data.sender_name}`, 'info');
     }
@@ -431,15 +527,16 @@ function handleTypingIndicator(data) {
 // ============================================
 
 function loadFriends() {
-    // This should fetch from API
-    // Mock data for demonstration
-    const mockFriends = [
-        { id: 1, username: 'alexey_ivanov', status: 'online', avatar: null },
-        { id: 2, username: 'maria_petrova', status: 'away', avatar: null },
-        { id: 3, username: 'dmitry_sidorov', status: 'offline', avatar: null }
-    ];
-    
-    renderFriends(mockFriends);
+    renderSkeletons(elements.friendsList, 3);
+
+    setTimeout(() => {
+        const mockFriends = [
+            { id: 1, username: 'alexey_ivanov', status: 'online', avatar: null },
+            { id: 2, username: 'maria_petrova', status: 'away', avatar: null },
+            { id: 3, username: 'dmitry_sidorov', status: 'offline', avatar: null }
+        ];
+        renderFriends(mockFriends);
+    }, 600);
 }
 
 function renderFriends(friends) {

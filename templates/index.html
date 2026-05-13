@@ -8,7 +8,7 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
     
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -23,6 +23,12 @@
     <!-- Animated Background -->
     <canvas id="nebula-canvas"></canvas>
     <div class="bg-gradients"></div>
+
+    <!-- WebSocket Status Banner -->
+    <div class="ws-banner" id="ws-banner" role="status" aria-live="polite">
+        <span class="ws-banner-icon"><i class="bi bi-wifi-off"></i></span>
+        <span id="ws-banner-text">Соединение потеряно. Восстановление...</span>
+    </div>
 
     <!-- Main Container -->
     <div class="container-fluid vh-100 overflow-hidden position-relative" style="z-index: 1;">
@@ -41,6 +47,10 @@
                             </small>
                         </div>
                     </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-link text-decoration-none p-0 d-none d-md-inline-flex" title="Добавить друга" data-bs-toggle="modal" data-bs-target="#addFriendModal" style="color: var(--fg-primary);">
+                            <i class="bi bi-person-plus-fill"></i>
+                        </button>
                     <div class="dropdown">
                         <button class="btn btn-link text-decoration-none p-0" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-three-dots-vertical" style="color: var(--fg-primary);"></i>
@@ -58,6 +68,7 @@
                             </a></li>
                         </ul>
                     </div>
+                    </div><!-- /d-flex actions wrapper -->
                 </div>
 
                 <!-- Search -->
@@ -79,8 +90,9 @@
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link py-2" id="friends-tab" data-bs-toggle="pill" data-bs-target="#friends" type="button" role="tab" style="font-size: 0.85rem;">
+                            <button class="nav-link py-2 position-relative" id="friends-tab" data-bs-toggle="pill" data-bs-target="#friends" type="button" role="tab" style="font-size: 0.85rem;">
                                 Друзья
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="friend-requests-badge" style="font-size: 0.6rem;"></span>
                             </button>
                         </li>
                     </ul>

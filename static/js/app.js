@@ -520,9 +520,21 @@ async function loadFriends() {
     } catch (e) { showToast(e.message, "error"); }
 }
 
+function updateRequestsBadge(count) {
+    const badge = document.getElementById('friend-requests-badge');
+    if (!badge) return;
+    if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.classList.remove('d-none');
+    } else {
+        badge.classList.add('d-none');
+    }
+}
+
 async function loadRequests() {
     try {
         const requests = await apiRequest('/friends/requests');
+        updateRequestsBadge(requests.length);
         const list = document.getElementById('requests-list');
         if (requests.length === 0) {
             list.classList.add('hidden');
